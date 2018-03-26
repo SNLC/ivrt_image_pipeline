@@ -99,11 +99,11 @@ def multichannel_panda_to_alignment(df, csv_list, radius):
         alignment_features = df.loc[alignment, 'channel_name']
         aligned_df.loc[idx, alignment_features] = 1
 
-    pruned_aligned_df = aligned_df.drop_duplicates(keep='first')
+    aligned_df.drop_duplicates(keep='first', inplace=True)
 
     end = time.time()
     print("Alignment completed in {0:.2f} seconds".format(end-start))
-    return pruned_aligned_df, column_list
+    return aligned_df, column_list
 
 
 def alignment_df_to_region_df(df, region_radius, presynaptic_radius):
@@ -186,9 +186,10 @@ def regional_statistics(df, columns, target_cell_type):
 
 
 def main():
-    base_dir = ('/Volumes/My Book/rabies_tracing_images/'
-                'pv_cre_starter_cells/XH_12_07_17/'
-                'vglut_presynaptic_647/01_counts/')
+    # base_dir = ('/Volumes/My Book/rabies_tracing_images/'
+    #             'pv_cre_starter_cells/XH_12_07_17/'
+    #             'vglut_presynaptic_647/01_counts/')
+    base_dir = '~/Desktop/test/Synthetic/'
     csv_list = ['helper.csv', 'rabies.csv', 'vglut.csv']
     csv_paths = [os.path.join(base_dir, filename)
                  for filename in csv_list]
@@ -196,11 +197,11 @@ def main():
 
     multichannel_df = csv_to_pandas(csv_paths)
 
-    alignment_radius = 4.0
+    alignment_radius = .1
     alignment_df, column_list = multichannel_panda_to_alignment(multichannel_df,
                                                                 csv_list,
                                                                 alignment_radius)
-    max_presynaptic_distance = 300
+    max_presynaptic_distance = 1 
     region_radius = 2.0 * max_presynaptic_distance
 
     region_df = alignment_df_to_region_df(alignment_df,
