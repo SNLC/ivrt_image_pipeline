@@ -32,6 +32,17 @@ scikit-learn
 conda install numpy pandas scikit-learn networkx
 ```
 
+### Command line arguments
+
+```
+optional arguments:
+  -h, --help            show this help message and exit
+  --path                path to folder containing CSV
+  --alignment_radius    max xy distance in pixels for two points to be 'aligned' to same cell
+  --presynaptic_radius  Max XY distance which a presynaptic cell be from a starter cell and still be classified in that starter cell's region
+  --region_radius       Max XY distance in which two starter cells are grouped together into the same region
+```
+
 ## Authors
 
 * **Michael Lingelbach** - *Initial work* - [mjlbach](https://github.com/mjlbach)
