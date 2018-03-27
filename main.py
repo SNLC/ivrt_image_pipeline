@@ -7,6 +7,50 @@ import pandas as pd
 import sys
 import time
 import networkx as nx
+import argparse
+
+
+def parse_args():
+
+    parser = argparse.ArgumentParser(
+            description="""Quantify in vitro rabies tracing image data. Takes
+                        XY Coordinates from multiple counted microscope
+                        channels and aligns overlapping annotations into
+                        cells possesing n features. Then returns statistics
+                        on "regions" obtained by clustering starter cells
+                        and assigning presynaptic cells to each cluster
+                        region.""",
+                        argument_default=None)
+
+    parser.add_argument('--path',
+                        type=str,
+                        default=os.getcwd(),
+                        help='path to folder containing CSVs')
+
+    parser.add_argument('--alignment_radius',
+                        type=float,
+                        default=4.0,
+                        help="""Max XY distance in pixels for two points
+                        to be 'aligned' to same cell""")
+
+    parser.add_argument('--presynaptic_radius',
+                        type=float,
+                        default=300.0,
+                        help="""Max XY distance which a presynaptic cell
+                        be from a starter cell and still be classified in
+                        that starter cell's region""")
+
+    parser.add_argument('--region_radius',
+                        type=float,
+                        help="""Max XY distance in which two starter cells
+                        are grouped together into the same region""")
+
+    args = parser.parse_args()
+
+    if args.region_radius is None:
+        args.region_radius = 2 * args.presynaptic_radius
+
+    return args
 
 
 def test_csv(csv_list):
@@ -87,6 +131,7 @@ def multichannel_panda_to_alignment(df, csv_list, radius):
     coordinates = df.loc[:, ('x', 'y')].values
     tree = sklearn.neighbors.KDTree(coordinates, leaf_size=40)
     alignment_array = tree.query_radius(coordinates, r=radius)
+
     column_list = ['x', 'y'] + [os.path.splitext(csv)[0] for csv in csv_list]
     aligned_df = pd.DataFrame(index=df.index, columns=column_list)
     aligned_df.fillna(value=0, inplace=True)
@@ -103,6 +148,7 @@ def multichannel_panda_to_alignment(df, csv_list, radius):
 
     end = time.time()
     print("Alignment completed in {0:.2f} seconds".format(end-start))
+
     return aligned_df, column_list
 
 
@@ -118,7 +164,6 @@ def alignment_df_to_region_df(df, region_radius, presynaptic_radius):
     df.loc[((df['rabies'] == 1) & (df['helper'] == 0)), 'presynaptic'] = 1
     starter_cell_df = df[((df['helper'] == 1) & (df['rabies'] == 1))]
     starter_cell_xy = starter_cell_df.loc[:, ['x', 'y']]
-    starter_cell_idx_array = starter_cell_df.index.values
 
     starter_tree = sklearn.neighbors.KDTree(starter_cell_xy,
                                             leaf_size=40)
@@ -136,28 +181,28 @@ def alignment_df_to_region_df(df, region_radius, presynaptic_radius):
     df['in region'] = 0
     df['Region ID'] = np.nan
 
+    starter_indices = starter_cell_df.index.values
+
     for region_id, region in enumerate(joined_region_list):
-        indices = starter_cell_idx_array[np.array(list(region), dtype=np.int)]
+        indices = starter_indices[np.array(list(region), dtype=np.int)]
         df.loc[indices, ['starter', 'in region']] = [1, 1]
         df.loc[indices, 'Region ID'] = region_id + 1
-    # Better name for unlabeled_cell_bool = not_starter_cell
-    unlabeled_cell_bool = (df['in region'] == 0)
-    unlabeled_cells_xy = df.loc[unlabeled_cell_bool, ['x', 'y']]
-    distance_array, neighbor_array = starter_tree.query(unlabeled_cells_xy,
-                                                        k=1,
-                                                        dualtree=True)
 
-    df.loc[unlabeled_cell_bool, 'distance_to_closest_starter'] = distance_array
-    # Comment this line of code could use iloc,
-    # probably easier to read (iloc(df, :) index.values)
-    df.loc[unlabeled_cell_bool, 'closest_starter'] = starter_cell_idx_array[neighbor_array]
+    ungrouped_cells = (df['in region'] == 0)
+    ungrouped_cells_xy = df.loc[ungrouped_cells, ['x', 'y']]
+    distance_array, starter_idx = starter_tree.query(ungrouped_cells_xy,
+                                                     k=1,
+                                                     dualtree=True)
 
-    closest_starter_cell = df.loc[unlabeled_cell_bool, 'closest_starter']
+    df.loc[ungrouped_cells, 'distance_to_closest_starter'] = distance_array
+    df.loc[ungrouped_cells, 'closest_starter'] = starter_indices[starter_idx]
+
+    closest_starter_cell = df.loc[ungrouped_cells, 'closest_starter']
     closest_region_id = df.loc[closest_starter_cell, 'Region ID'].values
-    df.loc[unlabeled_cell_bool, 'Closest Region ID'] = closest_region_id
+    df.loc[ungrouped_cells, 'Closest Region ID'] = closest_region_id
 
     proximity_bool = df['distance_to_closest_starter'] < presynaptic_radius
-    prox_mask = (unlabeled_cell_bool & proximity_bool)
+    prox_mask = (ungrouped_cells & proximity_bool)
     df.loc[prox_mask, 'Region ID'] = df.loc[prox_mask, 'Closest Region ID']
     df.loc[prox_mask, 'in region'] = 1
 
@@ -189,24 +234,23 @@ def main():
     # base_dir = ('/Volumes/My Book/rabies_tracing_images/'
     #             'pv_cre_starter_cells/XH_12_07_17/'
     #             'vglut_presynaptic_647/01_counts/')
+    args = parse_args()
     base_dir = '~/Desktop/test/Synthetic/'
     csv_list = ['helper.csv', 'rabies.csv', 'vglut.csv']
     csv_paths = [os.path.join(base_dir, filename)
                  for filename in csv_list]
+
     test_csv(csv_paths)
 
     multichannel_df = csv_to_pandas(csv_paths)
 
-    alignment_radius = .1
     alignment_df, column_list = multichannel_panda_to_alignment(multichannel_df,
                                                                 csv_list,
-                                                                alignment_radius)
-    max_presynaptic_distance = 1 
-    region_radius = 2.0 * max_presynaptic_distance
+                                                                args.alignment_radius)
 
     region_df = alignment_df_to_region_df(alignment_df,
-                                          region_radius,
-                                          max_presynaptic_distance)
+                                          args.region_radius,
+                                          args.presynaptic_radius)
 
     summary_df = regional_statistics(region_df, column_list, 'vglut')
 
