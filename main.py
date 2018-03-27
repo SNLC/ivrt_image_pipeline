@@ -8,6 +8,7 @@ import sys
 import time
 import networkx as nx
 import argparse
+import glob
 
 
 def parse_args():
@@ -115,7 +116,7 @@ def csv_to_pandas(csv_fpath_list):
     return df
 
 
-def multichannel_panda_to_alignment(df, csv_list, radius):
+def multichannel_panda_to_alignment(df, column_list, radius):
     """
     Input 1: DataFrame with cell XY coordinates in first two columns
     and CSV name from which the row originated.
@@ -131,8 +132,6 @@ def multichannel_panda_to_alignment(df, csv_list, radius):
     coordinates = df.loc[:, ('x', 'y')].values
     tree = sklearn.neighbors.KDTree(coordinates, leaf_size=40)
     alignment_array = tree.query_radius(coordinates, r=radius)
-
-    column_list = ['x', 'y'] + [os.path.splitext(csv)[0] for csv in csv_list]
     aligned_df = pd.DataFrame(index=df.index, columns=column_list)
     aligned_df.fillna(value=0, inplace=True)
 
@@ -149,7 +148,7 @@ def multichannel_panda_to_alignment(df, csv_list, radius):
     end = time.time()
     print("Alignment completed in {0:.2f} seconds".format(end-start))
 
-    return aligned_df, column_list
+    return aligned_df
 
 
 def alignment_df_to_region_df(df, region_radius, presynaptic_radius):
@@ -210,52 +209,56 @@ def alignment_df_to_region_df(df, region_radius, presynaptic_radius):
 
 
 def regional_statistics(df, columns, target_cell_type):
-    presynaptic_target_label = 'presynaptic ' + target_cell_type
+    pre_target = 'presynaptic ' + target_cell_type
     target_mask = ((df[target_cell_type] == 1) & (df['rabies'] == 1))
-    df.loc[target_mask, presynaptic_target_label] = 1
-    # This could be more robust... should propogate column labels in a more
-    # pythonic way
-    columns_to_sum = columns[2:] + ['starter', 'presynaptic', presynaptic_target_label]
+    df.loc[target_mask, pre_target] = 1
+
+    columns_to_sum = columns[2:] + ['starter',
+                                    'presynaptic',
+                                    pre_target]
+
     summary_df = df.set_index('Region ID')
     summary_df.sort_index(inplace=True)
     summary_df = summary_df.loc[:, columns_to_sum].sum(level=0)
 
-    presynaptic_target_presynaptic = presynaptic_target_label + '/presynaptic'
-    summary_df[presynaptic_target_presynaptic] = summary_df[presynaptic_target_label]/summary_df['presynaptic']
+    pre_target_ratio = pre_target + '/presynaptic'
+    summary_df[pre_target_ratio] = summary_df[pre_target].divide(
+                                   summary_df['presynaptic'])
 
-    presynaptic_target_target = presynaptic_target_label + '/' + target_cell_type
-    summary_df[presynaptic_target_target] = summary_df[presynaptic_target_label]/summary_df[target_cell_type]
+    pre_target_ratio_2 = pre_target + '/' + target_cell_type
+    summary_df[pre_target_ratio_2] = summary_df[pre_target].divide(
+                                     summary_df[target_cell_type])
 
-    summary_df['presynaptic per starter'] = summary_df['presynaptic']/summary_df['starter']
+    summary_df['presynaptic/starter'] = summary_df['presynaptic'].divide(
+                                        summary_df['starter'])
     return summary_df
 
 
 def main():
-    # base_dir = ('/Volumes/My Book/rabies_tracing_images/'
-    #             'pv_cre_starter_cells/XH_12_07_17/'
-    #             'vglut_presynaptic_647/01_counts/')
     args = parse_args()
-    base_dir = '~/Desktop/test/Synthetic/'
-    csv_list = ['helper.csv', 'rabies.csv', 'vglut.csv']
-    csv_paths = [os.path.join(base_dir, filename)
-                 for filename in csv_list]
 
-    test_csv(csv_paths)
+    csv_list = glob.glob(os.path.join(args.path, '*.csv'))
+    csv_list = [csv for csv in csv_list if not
+                csv.endswith(('region.csv', 'summary.csv'))]
+    channels = ['x', 'y'] + [os.path.splitext(os.path.basename(csv))[0]
+                             for csv in csv_list]
+    print(os.sep.join(args.path.split(os.sep)[:-2]))
+    test_csv(csv_list)
 
-    multichannel_df = csv_to_pandas(csv_paths)
+    multichannel_df = csv_to_pandas(csv_list)
 
-    alignment_df, column_list = multichannel_panda_to_alignment(multichannel_df,
-                                                                csv_list,
-                                                                args.alignment_radius)
+    alignment_df = multichannel_panda_to_alignment(multichannel_df,
+                                                   channels,
+                                                   args.alignment_radius)
 
     region_df = alignment_df_to_region_df(alignment_df,
                                           args.region_radius,
                                           args.presynaptic_radius)
 
-    summary_df = regional_statistics(region_df, column_list, 'vglut')
+    summary_df = regional_statistics(region_df, channels, 'vglut')
 
-    region_df.to_csv(os.path.join(base_dir, 'region.csv'))
-    summary_df.to_csv(os.path.join(base_dir, 'summary.csv'))
+    region_df.to_csv(os.path.join(args.path, 'region.csv'))
+    summary_df.to_csv(os.path.join(args.path, 'summary.csv'))
 
 
 if __name__ == "__main__":
