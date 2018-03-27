@@ -29,10 +29,8 @@ scikit-learn
 ### Installing
 
 ```
-conda install numpy pandas scikit-learn, networkx
+conda install numpy pandas scikit-learn networkx
 ```
-
-End with an example of getting some data out of the system or using it for a little demo
 
 ## Authors
 
