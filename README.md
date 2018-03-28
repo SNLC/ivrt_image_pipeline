@@ -6,7 +6,7 @@ Step 1: Colocalization test across channels. Groups XY coordinates within user-p
 
 Step 2: Colocalization test across starter cells. Each starter cell is queried against every other starter cell on the dish. If the starter cell falls within a regional radius, it is added to the cluster.  
 
-Step 3: Grouping of non-starter cells by region. Each starter cell is assigned a Closest Region ID based on the nearest adjacenet starter cell. Each starter cell is given  
+Step 3: Grouping of non-starter cells by region. Each starter cell is assigned a Closest Region ID based on the nearest adjacent starter cell. Each starter cell is given  
 
 
 # Getting Started
