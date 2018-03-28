@@ -12,7 +12,6 @@ import glob
 
 
 def parse_args():
-
     parser = argparse.ArgumentParser(
             description="""Quantify in vitro rabies tracing image data. Takes
                         XY Coordinates from multiple counted microscope
