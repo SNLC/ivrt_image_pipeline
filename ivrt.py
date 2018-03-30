@@ -209,7 +209,7 @@ def alignment_df_to_region_df(df, region_radius, presynaptic_radius):
 
 def regional_statistics(df, columns, target_cell_type):
     pre_target = 'presynaptic ' + target_cell_type
-    target_mask = ((df[target_cell_type] == 1) & (df['rabies'] == 1))
+    target_mask = ((df[target_cell_type] == 1) & (df['rabies'] == 1) & (df['starter']!=1))
     df.loc[target_mask, pre_target] = 1
 
     columns_to_sum = columns[2:] + ['starter',

@@ -39,7 +39,6 @@ def join_df(csv_list):
 
 def main():
     args = parse_args()
-    args.path = '/Volumes/My Book/rabies_tracing_images/pv_cre_starter_cells/XH_12_07_17/vglut_presynaptic_647'
     summary_list = glob.glob(os.path.join(args.path, '**/summary.csv'),
                              recursive=True)
     summary_df = join_df(summary_list)
