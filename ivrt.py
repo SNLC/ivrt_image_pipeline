@@ -70,7 +70,8 @@ def test_csv(csv_list):
             print("File: {} does not exist".format(csv))
             sys.exit()
 
-        valid = all(x in df.columns for x in ['x', 'y'])
+        valid = all(x in df.columns for x in ['x', 'y', 'X', 'Y'])
+        print(df.columns)
         if not valid:
             example_df = pd.DataFrame(np.array([[0, 1],
                                                 [1, 2]]),
@@ -108,6 +109,10 @@ def csv_to_pandas(csv_fpath_list):
         df = pd.read_csv(csv_fpath)
         channel_name = os.path.splitext(os.path.basename(csv_fpath))[0]
         df['channel_name'] = channel_name
+        try:
+            df = df.rename(columns={'X': 'x', 'Y': 'y'})
+        except:
+            pass
         frames.append(df)
 
     df = pd.concat(frames)
@@ -242,7 +247,7 @@ def main():
                 csv.endswith(('region.csv', 'summary.csv'))]
     channels = ['x', 'y'] + [os.path.splitext(os.path.basename(csv))[0]
                              for csv in csv_list]
-    test_csv(csv_list)
+    #test_csv(csv_list)
 
     multichannel_df = csv_to_pandas(csv_list)
 
