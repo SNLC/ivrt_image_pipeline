@@ -1,15 +1,12 @@
-#!/usr/bin/env python
 
 import os
 import pandas as pd
 import glob
 import argparse
 
-
 def parse_args():
-
     parser = argparse.ArgumentParser(
-            description="""Combine individual coverslip quantificiation
+            description="""Combine individual coverslip quantification
                         data into an experiment summary""",
                         argument_default=None)
 
@@ -35,7 +32,6 @@ def join_df(csv_list):
         df_list.append(df)
     concatenated_summary_df = pd.concat(df_list)
     return concatenated_summary_df
-
 
 def main():
     args = parse_args()
